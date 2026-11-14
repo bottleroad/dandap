@@ -127,6 +127,24 @@ npx dandap@latest --with-hooks   # 위 항목 + Claude Code hook
 npx dandap@latest --uninstall    # 제거
 ```
 
+npm 대신 GitHub 저장소에서 바로 실행할 수도 있다. `main` 브랜치의 최신 커밋을 받으며, `git`이 필요하다.
+
+```bash
+npx -y github:bottleroad/dandap                # 설치
+npx -y github:bottleroad/dandap --with-hooks
+npx -y github:bottleroad/dandap --uninstall
+```
+
+`--with-hooks` 유무에 따른 차이는 다음과 같다. hook은 Claude Code에만 적용되고, Codex·agy·Gemini CLI는 어느 쪽이든 같다.
+
+| 항목 | 옵션 없음 | `--with-hooks` |
+|---|---|---|
+| 스킬·슬래시 명령 래퍼 | 설치 | 설치 |
+| `~/.claude/settings.json` | 건드리지 않음 | 백업 후 hook 2개 병합 |
+| `/compact`·resume 후 모드 | 풀릴 수 있음 | 유지 (규칙 재주입) |
+| `단답`, `초단답` 자연어로 켜기 | 스킬 설명에 따라 모델이 판단 | hook이 감지해 규칙을 주입 |
+| `/dandap status` | `(세션 추적 안 됨)`이 붙음 | 기록된 모드 보고 |
+
 * 파일을 `~/.dandap`에 복사하고, `~/.claude`, `~/.codex`, `~/.gemini` 중 있는 도구에만 링크한다.
 * 같은 이름이 링크가 아닌 실제 파일·디렉터리로 있으면 덮어쓰지 않고 건너뛴다. 다른 곳을 가리키는 링크는 `~/.dandap`을 가리키도록 교체한다.
 * `--with-hooks`는 `~/.claude/settings.json`을 `settings.json.dandap-backup-<UTC 시각>`으로 백업한 뒤 hook을 병합한다. 다른 위치에 등록된 dandap hook은 중복 주입을 막기 위해 교체한다.
