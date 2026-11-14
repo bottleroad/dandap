@@ -45,22 +45,43 @@ function isOurLink(p) {
   return target.startsWith(BASE + path.sep);
 }
 
-function link(target, p) {
+// 링크 대신 복사한 파일 목록. ~/.dandap의 skills·commands·hooks만 재설치 때 지우므로 이 파일은 남는다.
+const COPIES = path.join(BASE, 'copies.json');
+
+function readCopies() {
+  try {
+    return new Set(JSON.parse(fs.readFileSync(COPIES, 'utf8')));
+  } catch (e) {
+    return new Set();
+  }
+}
+
+function link(target, p, copies) {
   const st = lstat(p);
-  if (st && !st.isSymbolicLink()) {
+  if (st && !st.isSymbolicLink() && !copies.has(p)) {
     console.warn(`건너뜀: ${p} 가 링크가 아닌 실제 파일·디렉터리다.`);
     return;
   }
   if (st) {
-    if (!isOurLink(p)) console.log(`교체: ${p} (기존 대상 ${fs.readlinkSync(p)})`);
+    if (st.isSymbolicLink() && !isOurLink(p)) console.log(`교체: ${p} (기존 대상 ${fs.readlinkSync(p)})`);
     fs.unlinkSync(p);
+    copies.delete(p);
   }
   fs.mkdirSync(path.dirname(p), { recursive: true });
-  fs.symlinkSync(target, p, fs.statSync(target).isDirectory() ? 'junction' : 'file');
+  const type = fs.statSync(target).isDirectory() ? 'junction' : 'file';
+  try {
+    fs.symlinkSync(target, p, type);
+  } catch (e) {
+    // Windows는 관리자 권한이나 개발자 모드 없이 파일 symlink를 만들 수 없다. 디렉터리는 junction이라 해당 없다.
+    if (e.code !== 'EPERM' || type !== 'file') throw e;
+    fs.copyFileSync(target, p);
+    copies.add(p);
+    console.log(`복사: ${p} (파일 링크 권한이 없어 복사함)`);
+  }
 }
 
-function unlinkOurs(p) {
-  if (isOurLink(p)) fs.unlinkSync(p);
+function unlinkOurs(p, copies) {
+  if (isOurLink(p) || (copies.has(p) && lstat(p)?.isFile())) fs.unlinkSync(p);
 }
 
 function toolEntries(tool) {
@@ -176,10 +197,12 @@ function install(withHooks) {
   }
   console.log(`복사: ${BASE}`);
 
+  const copies = readCopies();
   for (const tool of tools) {
-    for (const e of toolEntries(tool)) link(e.target, e.link);
+    for (const e of toolEntries(tool)) link(e.target, e.link, copies);
     console.log(`설치: ${tool.name} (~/${tool.dir})`);
   }
+  fs.writeFileSync(COPIES, JSON.stringify([...copies], null, 2) + '\n');
   if (withHooks) installHooks();
   console.log('완료. 실행 중인 에이전트 세션은 다시 시작해야 적용된다.');
   return 0;
@@ -192,8 +215,9 @@ function uninstall() {
     console.error(`${settingsPath()} 를 읽지 못해 중단한다: ${e.message}`);
     return 1;
   }
+  const copies = readCopies();
   for (const tool of TOOLS) {
-    for (const e of toolEntries(tool)) unlinkOurs(e.link);
+    for (const e of toolEntries(tool)) unlinkOurs(e.link, copies);
   }
   fs.rmSync(BASE, { recursive: true, force: true });
   console.log(`제거 완료: 링크와 ${BASE}`);

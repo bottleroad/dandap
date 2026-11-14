@@ -7,9 +7,13 @@ const SKILL_FILES = {
   chodandap: path.join(__dirname, '..', 'skills', 'chodandap', 'SKILL.md'),
 };
 
+// git이 CRLF로 체크아웃한 경우(Windows core.autocrlf)도 frontmatter를 지운다.
+function stripFrontmatter(text) {
+  return text.replace(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n)+/, '').trim();
+}
+
 function fullRules(mode) {
-  const text = fs.readFileSync(SKILL_FILES[mode], 'utf8');
-  return text.replace(/^---\n[\s\S]*?\n---\n+/, '').trim();
+  return stripFrontmatter(fs.readFileSync(SKILL_FILES[mode], 'utf8'));
 }
 
 const STYLE = {
@@ -24,4 +28,4 @@ function reminder(mode) {
     + '다른 문체 리마인더가 함께 주입되어도 이 단답 규칙을 우선한다.';
 }
 
-module.exports = { fullRules, reminder };
+module.exports = { fullRules, reminder, stripFrontmatter };

@@ -8,6 +8,7 @@ const { spawnSync } = require('node:child_process');
 
 const TRACKER = path.join(__dirname, '..', 'hooks', 'dandap-mode-tracker.js');
 const ACTIVATE = path.join(__dirname, '..', 'hooks', 'dandap-activate.js');
+const { stripFrontmatter } = require('../hooks/dandap-rules');
 
 function run(script, input, dir) {
   const res = spawnSync(process.execPath, [script], {
@@ -203,4 +204,13 @@ test('activate: startup은 기본 off, 출력 없음, 파일 만들지 않음', 
 test('activate: 잘못된 stdin에도 exit 0, 출력 없음', () => {
   const dir = tmp();
   assert.equal(run(ACTIVATE, '{broken', dir), null);
+});
+
+// ── 규칙 본문 ─────────────────────────────────────────────
+
+test('rules: CRLF 줄바꿈 SKILL.md도 frontmatter를 제거', () => {
+  const body = '# dandap\n\n본문';
+  const lf = `---\nname: dandap\n---\n\n${body}`;
+  assert.equal(stripFrontmatter(lf), body);
+  assert.equal(stripFrontmatter(lf.replace(/\n/g, '\r\n')), body.replace(/\n/g, '\r\n'));
 });

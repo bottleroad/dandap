@@ -7,6 +7,7 @@ const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 
 const INSTALLER = path.join(__dirname, '..', 'installer', 'install.js');
+const EPERM = path.join(__dirname, 'fixtures', 'symlink-eperm.js');
 const SKILLS = ['dandap', 'chodandap', 'dandap-help', 'dandap-commit', 'dandap-review'];
 
 function freshHome(tools = ['.claude', '.codex', '.gemini']) {
@@ -15,16 +16,27 @@ function freshHome(tools = ['.claude', '.codex', '.gemini']) {
   return home;
 }
 
-function run(home, ...args) {
-  const res = spawnSync(process.execPath, [INSTALLER, ...args], {
-    env: { ...process.env, HOME: home },
+// Windows의 os.homedir()는 HOME이 아니라 USERPROFILE을 읽으므로 둘 다 바꾼다.
+function runNode(home, argv) {
+  return spawnSync(process.execPath, argv, {
+    env: { ...process.env, HOME: home, USERPROFILE: home },
     encoding: 'utf8',
   });
-  return res;
+}
+
+function run(home, ...args) {
+  return runNode(home, [INSTALLER, ...args]);
 }
 
 function ok(home, ...args) {
   const res = run(home, ...args);
+  assert.equal(res.status, 0, `exit code 0 기대, stderr: ${res.stderr}`);
+  return res;
+}
+
+// 파일 symlink가 EPERM으로 실패하는 환경에서 설치 스크립트를 실행한다.
+function okWithoutFileSymlink(home, ...args) {
+  const res = runNode(home, ['-r', EPERM, INSTALLER, ...args]);
   assert.equal(res.status, 0, `exit code 0 기대, stderr: ${res.stderr}`);
   return res;
 }
@@ -130,6 +142,38 @@ test('--uninstall: 설치한 링크·hook·~/.dandap만 제거', () => {
   assert.ok(fs.existsSync(mine));
   assert.deepEqual(hookCommands(home, 'SessionStart'), ['echo other']);
   assert.equal(settings(home).hooks.UserPromptSubmit, undefined);
+});
+
+test('파일 symlink 권한이 없으면 명령 래퍼를 복사해 설치를 끝까지 진행', () => {
+  const home = freshHome();
+  okWithoutFileSymlink(home, '--with-hooks');
+  const base = path.join(home, '.dandap');
+  const wrapper = path.join(home, '.claude', 'commands', 'dandap.md');
+  assert.ok(!fs.lstatSync(wrapper).isSymbolicLink(), '명령 래퍼는 복사본');
+  assert.equal(fs.readFileSync(wrapper, 'utf8'),
+    fs.readFileSync(path.join(base, 'commands', 'claude', 'dandap.md'), 'utf8'));
+  assert.ok(fs.existsSync(path.join(home, '.gemini', 'commands', 'chodandap.toml')));
+  for (const dir of ['.claude', '.codex', '.gemini']) {
+    assert.ok(fs.lstatSync(path.join(home, dir, 'skills', 'dandap')).isSymbolicLink(), `${dir} 스킬은 링크`);
+  }
+  assert.equal(hookCommands(home, 'UserPromptSubmit').length, 1, 'hook 등록까지 진행');
+});
+
+test('파일 symlink 권한이 없을 때 재설치는 복사본을 갱신하고 제거는 복사본만 지움', () => {
+  const home = freshHome(['.claude']);
+  okWithoutFileSymlink(home);
+  const wrapper = path.join(home, '.claude', 'commands', 'dandap.md');
+  fs.writeFileSync(wrapper, 'stale');
+  const mine = path.join(home, '.claude', 'commands', 'mine.md');
+  fs.writeFileSync(mine, 'mine');
+
+  okWithoutFileSymlink(home);
+  assert.notEqual(fs.readFileSync(wrapper, 'utf8'), 'stale', '재설치 시 복사본 갱신');
+
+  ok(home, '--uninstall');
+  assert.ok(!fs.existsSync(wrapper));
+  assert.ok(!fs.existsSync(path.join(home, '.claude', 'commands', 'chodandap.md')));
+  assert.equal(fs.readFileSync(mine, 'utf8'), 'mine', '사용자 파일은 남김');
 });
 
 test('알 수 없는 옵션은 실패', () => {
