@@ -11,7 +11,8 @@ const EPERM = path.join(__dirname, 'fixtures', 'symlink-eperm.js');
 const SKILLS = ['dandap', 'chodandap', 'dandap-help', 'dandap-commit', 'dandap-review'];
 
 function freshHome(tools = ['.claude', '.codex', '.gemini']) {
-  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'dandap-home-'));
+  // 한글·공백 사용자명 경로에서도 동작해야 한다(Windows의 fs.cpSync는 비 ASCII 경로를 깨뜨린 적이 있다).
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'dandap home 사용자-'));
   for (const t of tools) fs.mkdirSync(path.join(home, t));
   return home;
 }
