@@ -59,7 +59,7 @@
 ### 상태 확인
 
 * `/dandap status`: 모드를 바꾸지 않고 `단답 모드: <dandap|chodandap|off>` 한 줄로 보고한다.
-* hook이 설치되지 않은 환경(Gemini CLI 등)에서는 `(세션 추적 안 됨)`이 붙는다.
+* hook이 없는 환경(Codex, agy, Gemini CLI)에서는 `(세션 추적 안 됨)`이 붙는다.
 
 ### 관련 스킬
 
@@ -69,7 +69,25 @@
 | `dandap-commit` | `/dandap-commit` | Conventional Commits 접두어 + 한국어 평서체 커밋 메시지 작성 |
 | `dandap-review` | `/dandap-review` | 한 줄 한 지적(위치·문제·수정안) 한국어 코드 리뷰 |
 
-`dandap-commit`, `dandap-review`, `chodandap`은 `disable-model-invocation: true`로 설정되어 있어 명시적으로 호출할 때만 동작한다.
+`dandap-commit`, `dandap-review`, `chodandap`은 `disable-model-invocation: true`로 설정되어 있어 명시적으로 호출할 때만 동작한다. Claude Code와 agy에서는 이 설정이 적용되었지만, Codex는 이 설정을 따르지 않는 것으로 보인다([지원 도구](#-지원-도구) 참고).
+
+---
+
+## 🧩 지원 도구
+
+2026-11-14에 도구별 비대화형 실행으로 스킬 목록 조회와 실제 호출을 확인했다.
+
+| 항목 | Claude Code (`2.1.319`) | Codex (`0.167.0`) | agy, Antigravity (`1.5.9`) |
+|---|---|---|---|
+| 스킬 경로 | `~/.claude/skills/<스킬>` | `~/.codex/skills/<스킬>` | `~/.gemini/skills/<스킬>` (`~/.gemini/config/skills`도 읽음) |
+| 호출 문법 | `/dandap`, `/chodandap` | `$dandap`, `$chodandap` | `/dandap`, `/chodandap` |
+| 단답·초단답 응답 | 확인 | 확인 | 확인 |
+| `disable-model-invocation` | 적용 (모델 목록에서 숨김, 직접 호출은 동작) | 미적용으로 보임 (모델 목록에 5개 모두 표시) | 적용 (모델 목록에서 숨김, 직접 호출은 동작) |
+| hook (compact 후 유지, `status` 추적) | 지원 | 미적용 | 미적용 |
+| 슬래시 명령 래퍼 | `~/.claude/commands` | 없음 | 없음 |
+
+* Gemini CLI는 `~/.gemini/skills`, `~/.gemini/commands`를 agy와 함께 쓰도록 연결되어 있지만, 동작은 확인하지 않았다.
+* Codex와 agy는 1회성 질문만 확인했다. 여러 턴에 걸친 모드 유지와 `off`·`status` 인자 처리는 확인하지 않았다.
 
 ---
 
@@ -77,11 +95,15 @@
 
 ```
 dandap/
-├── SKILL.md                 # dandap(단답) 스킬
-├── chodandap/SKILL.md       # chodandap(초단답) 스킬
-├── dandap-help/SKILL.md     # 도움말 카드
-├── dandap-commit/SKILL.md   # 커밋 메시지 스킬
-├── dandap-review/SKILL.md   # 코드 리뷰 스킬
+├── skills/
+│   ├── dandap/SKILL.md          # dandap(단답) 스킬
+│   ├── chodandap/SKILL.md       # chodandap(초단답) 스킬
+│   ├── dandap-help/SKILL.md     # 도움말 카드
+│   ├── dandap-commit/SKILL.md   # 커밋 메시지 스킬
+│   └── dandap-review/SKILL.md   # 코드 리뷰 스킬
+├── commands/                # 슬래시 명령 래퍼 (off·status·cho 인자 처리)
+│   ├── claude/dandap.md, chodandap.md
+│   └── gemini/dandap.toml, chodandap.toml
 ├── hooks/                   # Claude Code hook (모드 유지)
 │   ├── dandap-activate.js       # SessionStart: compact·resume 후 규칙 재주입
 │   ├── dandap-mode-tracker.js   # UserPromptSubmit: 명령 감지, 매 턴 리마인더
@@ -98,40 +120,52 @@ dandap/
 
 ### 1. 스킬 링크
 
-저장소를 내려받은 위치를 `DANDAP_DIR`로 둔다. 아래는 Claude Code(`~/.claude/skills`)와 Gemini CLI(`~/.gemini/skills`)에서 같은 스킬을 쓰도록 `~/.agents/skills`를 거쳐 연결하는 구성이다.
+저장소를 내려받은 위치를 `DANDAP_DIR`로 둔다. 아래는 Claude Code, Codex, agy(Antigravity), Gemini CLI에서 같은 스킬을 쓰도록 `~/.agents/skills`를 거쳐 연결하는 구성이다.
 
 ```bash
 DANDAP_DIR="$HOME/workspace/my-skills/dandap"   # 저장소 위치에 맞게 수정
 
 for s in dandap chodandap dandap-help dandap-commit dandap-review; do
-  src="$DANDAP_DIR"; [ "$s" != dandap ] && src="$DANDAP_DIR/$s"
-  ln -s "$src" "$HOME/.agents/skills/$s"
-  ln -s "../../.agents/skills/$s" "$HOME/.claude/skills/$s"
-  ln -s "$src" "$HOME/.gemini/skills/$s"
+  ln -s "$DANDAP_DIR/skills/$s" "$HOME/.agents/skills/$s"        # 공용 경로
+  ln -s "../../.agents/skills/$s" "$HOME/.claude/skills/$s"      # Claude Code
+  ln -s "$HOME/.agents/skills/$s" "$HOME/.codex/skills/$s"       # Codex
+  ln -s "$DANDAP_DIR/skills/$s" "$HOME/.gemini/skills/$s"        # agy, Gemini CLI
 done
 ```
 
+* agy는 `~/.gemini/config/skills`도 읽는다. 이 경로를 `~/.agents/skills`로 연결해 두었다면 `~/.gemini/skills` 링크 없이도 인식될 수 있지만, 그 구성만으로 따로 확인하지는 않았다.
+* 이전 이름 `ultradandap`의 링크가 남아 있으면 지운다. 대상이 없는 링크가 된다.
+
 ### 2. 슬래시 명령 래퍼 (선택)
 
-인자(`off`, `status`, `cho`) 처리 규칙을 담은 명령 래퍼다. 이 저장소에는 포함되어 있지 않고 로컬에만 있다.
+인자(`off`, `status`, `cho`) 처리 규칙을 담은 명령 래퍼다. `commands/`에 있으며, 각 도구의 명령 디렉터리에 링크한다.
+
+```bash
+for f in dandap chodandap; do
+  ln -s "$DANDAP_DIR/commands/claude/$f.md" "$HOME/.claude/commands/$f.md"
+  ln -s "$DANDAP_DIR/commands/gemini/$f.toml" "$HOME/.gemini/commands/$f.toml"
+done
+```
+
 
 * Claude Code: `~/.claude/commands/dandap.md`, `~/.claude/commands/chodandap.md`
 * Gemini CLI: `~/.gemini/commands/dandap.toml`, `~/.gemini/commands/chodandap.toml`
+* Codex, agy: 래퍼 없음. 스킬을 직접 호출한다.
 
 ### 3. hook (Claude Code 전용, 선택)
 
 스킬 문서만으로는 `/compact` 이후 모드가 풀리는 문제를 막을 수 없다. hook을 등록하면 세션별 모드를 파일에 기록하고, compact·resume 뒤에 규칙을 다시 주입한다.
 
-`~/.claude/settings.json`의 `hooks`에 아래 두 항목을 추가한다. 기존 hook 항목이 있으면 덮어쓰지 말고 배열에 병합한다.
+`~/.claude/settings.json`의 `hooks`에 아래 두 항목을 추가한다. 기존 hook 항목이 있으면 덮어쓰지 말고 배열에 병합한다. 경로는 `DANDAP_DIR`에 맞게 바꾼다. hook은 스킬 디렉터리가 아닌 저장소의 `hooks/`에 있다.
 
 ```json
 {
   "hooks": {
     "SessionStart": [
-      { "hooks": [{ "type": "command", "command": "node \"$HOME/.agents/skills/dandap/hooks/dandap-activate.js\"" }] }
+      { "hooks": [{ "type": "command", "command": "node \"$HOME/workspace/my-skills/dandap/hooks/dandap-activate.js\"" }] }
     ],
     "UserPromptSubmit": [
-      { "hooks": [{ "type": "command", "command": "node \"$HOME/.agents/skills/dandap/hooks/dandap-mode-tracker.js\"" }] }
+      { "hooks": [{ "type": "command", "command": "node \"$HOME/workspace/my-skills/dandap/hooks/dandap-mode-tracker.js\"" }] }
     ]
   }
 }
@@ -227,10 +261,10 @@ python3 bench/measure.py --summarize /tmp/dandap-bench.jsonl
 ## ⚠️ 알려진 한계
 
 * **compact 후 규칙 중복**: 활성 상태에서 compact하면 Claude Code가 복원한 스킬 본문과 hook이 다시 넣은 규칙 전문이 함께 들어간다. 동작 문제는 없고 토큰만 늘어난다. hook은 Claude Code의 복원 여부를 알 수 없고, 재주입을 빼면 자연어로 켠 세션은 compact 후 규칙이 사라지므로 그대로 둔다.
-* **hook이 없는 환경**(Gemini CLI 등): 모드를 파일로 기록하지 않으므로 compact 후 모드가 풀릴 수 있고, `/dandap status`는 `(세션 추적 안 됨)`으로 보고한다.
+* **hook이 없는 환경**(Codex, agy, Gemini CLI): 모드를 파일로 기록하지 않으므로 compact 후 모드가 풀릴 수 있고, `/dandap status`는 `(세션 추적 안 됨)`으로 보고한다. Codex는 hook 기능 자체는 지원하지만, dandap hook은 등록하지 않았고 입력 형식 호환성도 확인하지 않았다.
+* **Codex의 자동 호출**: Codex는 `disable-model-invocation`을 따르지 않는 것으로 보인다. 그래서 `chodandap`, `dandap-commit`, `dandap-review`를 모델이 스스로 호출할 수 있다. 실제로 자동 호출되는지는 확인하지 않았다.
 * **서브에이전트**: SubagentStart hook을 두지 않았으므로 서브에이전트에는 단답 모드가 전달되지 않는다.
 * **caveman 공존**: 우선순위는 리마인더 문구로만 지시한다. caveman 설정은 건드리지 않는다.
-* **슬래시 명령 래퍼**: `~/.claude/commands`, `~/.gemini/commands`의 래퍼는 저장소에 포함되어 있지 않다.
 * **비용**: 규칙 중복 수정 후의 비용은 다시 측정하지 않았다.
 
 ---
@@ -262,4 +296,5 @@ caveman과 비교 검토한 뒤 정한 사항이다.
   * 모드 유지용 hook 2개와 테스트를 추가했다.
   * `dandap-help`, `dandap-commit`, `dandap-review` 스킬을 추가했다.
   * 토큰 측정 스크립트와 결과를 추가했다.
+  * 저장소 구조를 `skills/<스킬>/SKILL.md`, `commands/`로 정리하고, 슬래시 명령 래퍼를 저장소에 포함했다.
 * **1.0.0**: `dandap`, `ultradandap` 최초 버전.

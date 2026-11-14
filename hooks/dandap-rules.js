@@ -3,8 +3,8 @@ const fs = require('fs');
 const path = require('path');
 
 const SKILL_FILES = {
-  dandap: path.join(__dirname, '..', 'SKILL.md'),
-  chodandap: path.join(__dirname, '..', 'chodandap', 'SKILL.md'),
+  dandap: path.join(__dirname, '..', 'skills', 'dandap', 'SKILL.md'),
+  chodandap: path.join(__dirname, '..', 'skills', 'chodandap', 'SKILL.md'),
 };
 
 function fullRules(mode) {
