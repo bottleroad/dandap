@@ -123,7 +123,7 @@ dandap/
 
 ```bash
 npx dandap@latest                # 스킬 + 슬래시 명령 래퍼
-npx dandap@latest --with-hooks   # 위 항목 + Claude Code hook
+npx dandap@latest --with-hooks   # 위 항목 + hook (Claude Code 전용)
 npx dandap@latest --uninstall    # 제거
 ```
 
@@ -131,11 +131,13 @@ npm 대신 GitHub 저장소에서 바로 실행할 수도 있다. `main` 브랜�
 
 ```bash
 npx -y github:bottleroad/dandap                # 설치
-npx -y github:bottleroad/dandap --with-hooks
+npx -y github:bottleroad/dandap --with-hooks   # hook (Claude Code 전용)
 npx -y github:bottleroad/dandap --uninstall
 ```
 
-`--with-hooks` 유무에 따른 차이는 다음과 같다. hook은 Claude Code에만 적용되고, Codex·agy·Gemini CLI는 어느 쪽이든 같다.
+**`--with-hooks`는 Claude Code에만 적용된다.** Codex·agy·Gemini CLI에는 hook을 등록하지 않으므로, 옵션을 붙여도 붙이지 않은 것과 똑같이 설치된다. `~/.claude`가 없으면 `--with-hooks`는 실패한다.
+
+Claude Code에서 `--with-hooks` 유무에 따른 차이는 다음과 같다.
 
 | 항목 | 옵션 없음 | `--with-hooks` |
 |---|---|---|
