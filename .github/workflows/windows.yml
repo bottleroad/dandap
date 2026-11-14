@@ -38,6 +38,14 @@ jobs:
         run: |
           $tgz = npm pack --silent
           "TGZ=$((Resolve-Path $tgz).Path)" >> $env:GITHUB_ENV
+      - name: 설치 스모크 테스트 (ASCII HOME)
+        shell: pwsh
+        run: node .github/scripts/install-smoke.js "$env:TGZ" "$env:RUNNER_TEMP\home-ascii"
       - name: 설치 스모크 테스트 (공백·한글이 들어간 HOME)
+        if: success() || failure()
         shell: pwsh
         run: node .github/scripts/install-smoke.js "$env:TGZ" "$env:RUNNER_TEMP\home 사용자"
+      - name: 진단용 디렉터리 출력
+        if: failure()
+        shell: pwsh
+        run: Get-ChildItem -Recurse -Depth 3 -Force $env:RUNNER_TEMP | Select-Object -ExpandProperty FullName
