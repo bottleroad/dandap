@@ -23,7 +23,11 @@ function main() {
   const change = parseModeChange(data.prompt);
 
   if (change.action === 'status') {
-    emit(`모드를 바꾸지 말고 다음 한 줄만 그대로 보고할 것: 단답 모드: ${current || 'off'}`);
+    // 기록이 없다고 off는 아니다. hook 설치 전에 켰거나 모델이 스킬을 직접 호출한 세션일 수 있다.
+    emit(current
+      ? `모드를 바꾸지 말고 다음 한 줄만 그대로 보고할 것: 단답 모드: ${current}`
+      : 'hook 기록 없음. 모드를 바꾸지 말고 대화에서 판단한 현재 모드를 '
+        + '`단답 모드: <dandap|chodandap|off> (세션 추적 안 됨)` 한 줄로만 보고할 것.');
     return;
   }
 

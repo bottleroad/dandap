@@ -98,10 +98,12 @@ test('tracker: status는 모드를 바꾸지 않고 현재 모드 보고', () =>
   assert.equal(stored(dir, 's1'), 'chodandap');
 });
 
-test('tracker: 기록이 없을 때 status는 off 보고', () => {
+test('tracker: 기록이 없을 때 status는 off로 단정하지 않고 대화 기준 보고 지시', () => {
   const dir = tmp();
   const ctx = context(run(TRACKER, { session_id: 's9', prompt: '/dandap status' }, dir), 'UserPromptSubmit');
-  assert.match(ctx, /단답 모드: off/);
+  assert.match(ctx, /hook 기록 없음/);
+  assert.match(ctx, /\(세션 추적 안 됨\)/);
+  assert.doesNotMatch(ctx, /단답 모드: off/);
   assert.equal(stored(dir, 's9'), null);
 });
 
