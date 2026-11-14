@@ -45,6 +45,13 @@ jobs:
         if: success() || failure()
         shell: pwsh
         run: node .github/scripts/install-smoke.js "$env:TGZ" "$env:RUNNER_TEMP\home 사용자"
+      - name: GitHub 설치 스모크 테스트 (공백·한글이 들어간 HOME)
+        # README 안내와 같은 형태로 기본 브랜치를 받는다. npm 10은 "#<커밋 SHA>"를 붙이면
+        # "GitFetcher requires an Arborist constructor"로 실패하므로 커밋을 지정하지 않는다.
+        # 기본 브랜치를 받으므로 main push·수동 실행에서만 검증한다.
+        if: (success() || failure()) && github.ref == 'refs/heads/main'
+        shell: pwsh
+        run: node .github/scripts/install-smoke.js "github:${{ github.repository }}" "$env:RUNNER_TEMP\gh 사용자"
       - name: 진단용 디렉터리 출력
         if: failure()
         shell: pwsh

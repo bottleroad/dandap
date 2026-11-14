@@ -1,13 +1,21 @@
 // npm pack 결과물을 npx로 실제 설치·재설치·제거하고, 등록된 hook 명령을 여러 셸에서 실행해 검증하는 스모크 스크립트.
-// 사용법: node install-smoke.js <tgz 경로> <임시 HOME 경로>
+// 사용법: node install-smoke.js <tgz 경로 또는 npm 패키지 지정자(github:owner/repo#sha 등)> <임시 HOME 경로>
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 
-const [tgz, home] = process.argv.slice(2).map((p) => path.resolve(p));
+const [spec, homeArg] = process.argv.slice(2);
+const pkg = fs.existsSync(spec) ? path.resolve(spec) : spec;
+const home = path.resolve(homeArg);
 const isWin = process.platform === 'win32';
-const env = { ...process.env, HOME: home, USERPROFILE: home };
+// 실제 사용자 PC처럼 npm 캐시도 HOME 아래(한글 경로일 수 있음)에 둔다.
+const env = {
+  ...process.env,
+  HOME: home,
+  USERPROFILE: home,
+  npm_config_cache: path.join(home, 'AppData', 'Local', 'npm-cache'),
+};
 const base = path.join(home, '.dandap');
 const SKILLS = ['dandap', 'chodandap', 'dandap-help', 'dandap-commit', 'dandap-review'];
 const WRAPPERS = [['.claude', 'dandap.md'], ['.claude', 'chodandap.md'], ['.gemini', 'dandap.toml'], ['.gemini', 'chodandap.toml']];
@@ -18,7 +26,7 @@ function step(name) {
 
 // 설치 디렉터리 밖(임시 HOME)에서 실행해야 저장소 자체 package.json의 영향을 받지 않는다.
 function installer(...args) {
-  const res = spawnSync('npm', ['exec', '--yes', `--package=${tgz}`, '--', 'dandap', ...args],
+  const res = spawnSync('npm', ['exec', '--yes', `--package=${pkg}`, '--', 'dandap', ...args],
     { cwd: home, env, encoding: 'utf8', shell: isWin });
   process.stdout.write(res.stdout);
   process.stderr.write(res.stderr);
@@ -73,7 +81,8 @@ function checkInstalled() {
   }
 }
 
-console.log(`node ${process.version}, ${process.platform}, HOME=${home}`);
+const npmVersion = spawnSync('npm', ['--version'], { env, encoding: 'utf8', shell: isWin }).stdout.trim();
+console.log(`node ${process.version}, npm ${npmVersion}, ${process.platform}, 패키지=${pkg}, HOME=${home}`);
 for (const dir of ['.claude', '.codex', '.gemini']) fs.mkdirSync(path.join(home, dir), { recursive: true });
 
 step('설치 (--with-hooks)');
