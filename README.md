@@ -1,7 +1,7 @@
 # dandap (단답) 🤫
 
 > **"불필요한 미사여구는 버리고, 기술적 팩트와 페이로드만 남긴다."**
-> [JuliusBrussee/caveman](https://github.com/JuliusBrussee/caveman)에서 영감을 받아 만든 **AI 코딩 에이전트용 한국어 개조식 단답 스킬**이다.
+> **AI 코딩 에이전트용 한국어 개조식 단답 스킬**이다.
 
 ---
 
@@ -172,7 +172,6 @@ done
 ```
 
 * agy는 `~/.gemini/config/skills`도 읽는다. 이 경로를 `~/.agents/skills`로 연결해 두었다면 `~/.gemini/skills` 링크 없이도 인식될 수 있지만, 그 구성만으로 따로 확인하지는 않았다.
-* 이전 이름 `ultradandap`의 링크가 남아 있으면 지운다. 대상이 없는 링크가 된다.
 
 ### 2. 슬래시 명령 래퍼 (선택)
 
@@ -213,7 +212,6 @@ done
 * 새 세션(`startup`)과 `/clear`는 기본 off로 시작한다. `/dandap off` 후에는 compact해도 다시 켜지지 않는다.
 * `/dandap`, `/chodandap` 슬래시 명령으로 켜면 Claude Code가 스킬 본문을 로드하므로 hook은 리마인더만 주입한다. `단답`처럼 자연어로 켜거나 `/dandap cho`로 전환할 때만 hook이 규칙 전문을 주입한다.
 * Claude Code는 compact 뒤 세션 중 호출된 스킬 본문을 스스로 복원한다. 이 본문이 현재 모드와 어긋나지 않도록, SessionStart hook이 마지막에 현재 모드(off면 "복원된 단답 규칙을 따르지 않음")를 한 줄로 주입한다.
-* caveman 플러그인 리마인더와 동시에 주입되면 단답 규칙을 우선하도록 리마인더에 명시되어 있다.
 
 ### 4. 테스트
 
@@ -258,7 +256,6 @@ Node.js 22 이상, 외부 의존성 없음.
 | `/compact` 후 단답·초단답 유지 | 통과 |
 | `/dandap off` 후 `/compact`해도 다시 켜지지 않음 | 통과 |
 | 초단답에서 `만`/`도` 보존 (`삭제는 admin만 허용.`, `본인 글도 user 삭제 불가.`) | 통과 |
-| caveman 리마인더와 동시 주입 시 단답체 유지 | 통과 |
 
 ---
 
@@ -267,7 +264,7 @@ Node.js 22 이상, 외부 의존성 없음.
 2026-11-14, `bench/measure.py`로 측정했다.
 
 * 방식: `claude -p`(모델 `claude-opus-5-5`, 도구 비활성화)로 개발 질문 10개를 네 조건에서 3회씩 실행했다. 총 120회, 실패 0회.
-* 환경: 실제 사용 환경 그대로다. caveman 플러그인(full)과 전역 CLAUDE.md("모든 답변은 한글로")가 네 조건 모두에 적용되었다.
+* 환경: 실제 사용 환경 그대로다. 전역 CLAUDE.md("모든 답변은 한글로")가 네 조건 모두에 적용되었다.
 * `output_tokens`는 API usage 값이며, 사고(thinking) 토큰 포함 여부는 확인하지 않았다.
 
 | 조건 | 프롬프트 | 출력 토큰 중앙값 | 일반 대비 | "간결하게" 대비 | 응답 글자 수 중앙값 |
@@ -302,14 +299,11 @@ python3 bench/measure.py --summarize /tmp/dandap-bench.jsonl
 * **hook이 없는 환경**(Codex, agy, Gemini CLI): 모드를 파일로 기록하지 않으므로 compact 후 모드가 풀릴 수 있고, `/dandap status`는 `(세션 추적 안 됨)`으로 보고한다. Codex는 hook 기능 자체는 지원하지만, dandap hook은 등록하지 않았고 입력 형식 호환성도 확인하지 않았다.
 * **Codex의 자동 호출**: Codex는 `disable-model-invocation`을 따르지 않는 것으로 보인다. 그래서 `chodandap`, `dandap-commit`, `dandap-review`를 모델이 스스로 호출할 수 있다. 실제로 자동 호출되는지는 확인하지 않았다.
 * **서브에이전트**: SubagentStart hook을 두지 않았으므로 서브에이전트에는 단답 모드가 전달되지 않는다.
-* **caveman 공존**: 우선순위는 리마인더 문구로만 지시한다. caveman 설정은 건드리지 않는다.
 * **비용**: 규칙 중복 수정 후의 비용은 다시 측정하지 않았다.
 
 ---
 
 ## 🧭 설계 결정
-
-caveman과 비교 검토한 뒤 정한 사항이다.
 
 | 항목 | 결정 |
 |---|---|
@@ -319,20 +313,17 @@ caveman과 비교 검토한 뒤 정한 사항이다.
 | 응답 언어 | 질문 언어와 무관하게 한국어로 답한다 |
 | 채팅 외 산출물 | 코드·커밋·문서 등은 평서체(`-다`)로 쓴다 |
 | 문장 길이 | 단답은 한 문장 15어절 이하로 쓴다 |
-| caveman 공존 | caveman은 유지하고, 단답 리마인더에 단답 규칙 우선을 명시한다 |
 | 커밋 메시지 | Conventional Commits 접두어(영어) + 한국어 평서체 본문 |
 | 보조 스킬 | `dandap-commit`, `dandap-review`, `chodandap`은 명시 호출만 허용해 기존 스킬과 충돌을 피한다 |
-| 만들지 않은 것 | caveman의 compress(파일 압축), stats(사용량 통계), megacave(문언문) 대응 스킬 |
 
 ---
 
 ## 📝 변경 이력
 
 * **1.1.0** (2026-11-14)
-  * `ultradandap`을 `chodandap`(초단답)으로 이름을 바꿨다.
   * 조사 규칙, 종료 트리거, 예외 상황, 흉내 금지, 약어·화살표 금지, 15어절 기준, 전송 전 점검, 응답 언어 규칙을 추가했다.
   * 모드 유지용 hook 2개와 테스트를 추가했다.
   * `dandap-help`, `dandap-commit`, `dandap-review` 스킬을 추가했다.
   * 토큰 측정 스크립트와 결과를 추가했다.
   * 저장소 구조를 `skills/<스킬>/SKILL.md`, `commands/`로 정리하고, 슬래시 명령 래퍼를 저장소에 포함했다.
-* **1.0.0**: `dandap`, `ultradandap` 최초 버전.
+* **1.0.0**: 최초 버전.

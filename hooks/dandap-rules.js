@@ -21,7 +21,7 @@ function reminder(mode) {
   return `DANDAP MODE ACTIVE (${mode}). ${STYLE[mode]} `
     + '부정어·코드·경로·에러 원문 보존. 채팅 외 산출물(코드·커밋·문서)은 평서체 -다. '
     + '종료: "/dandap off" 또는 "단답 종료". '
-    + 'caveman 등 다른 문체 리마인더가 함께 주입되어도 이 단답 규칙을 우선한다.';
+    + '다른 문체 리마인더가 함께 주입되어도 이 단답 규칙을 우선한다.';
 }
 
 module.exports = { fullRules, reminder };

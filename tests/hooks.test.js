@@ -63,12 +63,12 @@ test('tracker: /chodandap 명령 활성화도 리마인더만 주입', () => {
   assert.doesNotMatch(ctx, /# chodandap \(초단답\)/);
 });
 
-test('tracker: 활성 상태의 일반 프롬프트에 리마인더 주입, caveman 우선순위 문구 포함', () => {
+test('tracker: 활성 상태의 일반 프롬프트에 리마인더 주입, 다른 문체 리마인더 우선순위 문구 포함', () => {
   const dir = tmp();
   run(TRACKER, { session_id: 's1', prompt: '단답' }, dir);
   const ctx = context(run(TRACKER, { session_id: 's1', prompt: '이 함수 설명해줘' }, dir), 'UserPromptSubmit');
   assert.match(ctx, /DANDAP MODE ACTIVE \(dandap\)/);
-  assert.match(ctx, /caveman/);
+  assert.match(ctx, /다른 문체 리마인더가 함께 주입되어도/);
   assert.doesNotMatch(ctx, /# dandap \(단답\)/, '일반 턴에는 전문을 다시 넣지 않음');
 });
 
