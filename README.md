@@ -127,6 +127,8 @@ npx dandap@latest --with-hooks   # 위 항목 + hook (Claude Code 전용)
 npx dandap@latest --uninstall    # 제거
 ```
 
+Node.js 22 이상이 필요하다. npx는 `engines` 조건을 강제하지 않고 경고만 하므로, 먼저 `node -v`로 확인한다.
+
 npm 대신 GitHub 저장소에서 바로 실행할 수도 있다. `main` 브랜치의 최신 커밋을 받으며, `git`이 필요하다.
 
 ```bash
@@ -134,6 +136,8 @@ npx -y github:bottleroad/dandap                # 설치
 npx -y github:bottleroad/dandap --with-hooks   # hook (Claude Code 전용)
 npx -y github:bottleroad/dandap --uninstall
 ```
+
+npm 10에서 확인했다. npm 12 이상은 git 설치를 막을 수 있어 `npx --allow-git=root -y github:bottleroad/dandap`처럼 옵션이 필요할 수 있지만, 확인하지 않았다.
 
 **`--with-hooks`는 Claude Code에만 적용된다.** Codex·agy·Gemini CLI에는 hook을 등록하지 않으므로, 옵션을 붙여도 붙이지 않은 것과 똑같이 설치된다. `~/.claude`가 없으면 `--with-hooks`는 실패한다.
 
@@ -151,18 +155,26 @@ Claude Code에서 `--with-hooks` 유무에 따른 차이는 다음과 같다.
 * 같은 이름이 링크가 아닌 실제 파일·디렉터리로 있으면 덮어쓰지 않고 건너뛴다. 다른 곳을 가리키는 링크는 `~/.dandap`을 가리키도록 교체한다.
 * `--with-hooks`는 `~/.claude/settings.json`을 `settings.json.dandap-backup-<UTC 시각>`으로 백업한 뒤 hook을 병합한다. 다른 위치에 등록된 dandap hook은 중복 주입을 막기 위해 교체한다.
 * `--uninstall`은 `~/.dandap`을 가리키는 링크와 hook, `~/.dandap`만 지운다. 상태 파일(`~/.claude/.dandap-sessions`)은 남긴다.
+* 백업 파일은 `--with-hooks`, `--uninstall`을 실행할 때마다 하나씩 생기고 자동으로 지워지지 않는다. 필요 없으면 `~/.claude/settings.json.dandap-backup-*`를 직접 지운다.
 * 설치 후 실행 중인 에이전트 세션은 다시 시작해야 적용된다.
 * macOS에서만 확인했다. Windows는 확인하지 않았다.
+
+### 저장소에서 개발할 때
+
+* 저장소 루트에서는 `npx dandap@latest`가 `sh: dandap: command not found`로 실패한다. 현재 디렉터리의 패키지 이름도 `dandap`이기 때문으로 보인다. 저장소 안에서는 `node installer/install.js [--with-hooks | --uninstall]`를 쓰거나 다른 디렉터리에서 npx를 실행한다.
+* 설치 스크립트를 실행하면 `~/.claude`, `~/.codex`, `~/.gemini`의 dandap 링크와 hook이 `~/.dandap` 기준으로 바뀐다. 저장소를 직접 연결한 개발용 구성(아래 1~3)을 쓰고 있다면 그 연결이 풀린다.
 
 아래 1~3은 저장소를 직접 연결하는 수동 설치 방법이다.
 
 ### 1. 스킬 링크
 
-저장소를 내려받은 위치를 `DANDAP_DIR`로 둔다. 아래는 Claude Code, Codex, agy(Antigravity), Gemini CLI에서 같은 스킬을 쓰도록 `~/.agents/skills`를 거쳐 연결하는 구성이다.
+저장소를 내려받은 위치를 `DANDAP_DIR`로 둔다. 아래는 Claude Code, Codex, agy(Antigravity), Gemini CLI에서 같은 스킬을 쓰도록 `~/.agents/skills`를 거쳐 연결하는 구성이다. 쓰지 않는 도구의 줄은 지워도 된다.
 
 ```bash
-DANDAP_DIR="$HOME/workspace/my-skills/dandap"   # 저장소 위치에 맞게 수정
+git clone https://github.com/bottleroad/dandap.git "$HOME/dandap"
+DANDAP_DIR="$HOME/dandap"   # clone한 위치
 
+mkdir -p ~/.agents/skills ~/.claude/skills ~/.codex/skills ~/.gemini/skills
 for s in dandap chodandap dandap-help dandap-commit dandap-review; do
   ln -s "$DANDAP_DIR/skills/$s" "$HOME/.agents/skills/$s"        # 공용 경로
   ln -s "../../.agents/skills/$s" "$HOME/.claude/skills/$s"      # Claude Code
@@ -178,6 +190,7 @@ done
 인자(`off`, `status`, `cho`) 처리 규칙을 담은 명령 래퍼다. `commands/`에 있으며, 각 도구의 명령 디렉터리에 링크한다.
 
 ```bash
+mkdir -p ~/.claude/commands ~/.gemini/commands
 for f in dandap chodandap; do
   ln -s "$DANDAP_DIR/commands/claude/$f.md" "$HOME/.claude/commands/$f.md"
   ln -s "$DANDAP_DIR/commands/gemini/$f.toml" "$HOME/.gemini/commands/$f.toml"
@@ -199,10 +212,10 @@ done
 {
   "hooks": {
     "SessionStart": [
-      { "hooks": [{ "type": "command", "command": "node \"$HOME/workspace/my-skills/dandap/hooks/dandap-activate.js\"" }] }
+      { "hooks": [{ "type": "command", "command": "node \"$HOME/dandap/hooks/dandap-activate.js\"" }] }
     ],
     "UserPromptSubmit": [
-      { "hooks": [{ "type": "command", "command": "node \"$HOME/workspace/my-skills/dandap/hooks/dandap-mode-tracker.js\"" }] }
+      { "hooks": [{ "type": "command", "command": "node \"$HOME/dandap/hooks/dandap-mode-tracker.js\"" }] }
     ]
   }
 }
@@ -225,21 +238,98 @@ Node.js 22 이상, 외부 의존성 없음.
 
 ## ⚙️ hook 동작 요약
 
-| 시점 | 상황 | 주입 내용 |
-|---|---|---|
-| UserPromptSubmit | `/dandap`, `/chodandap`으로 켬 | 리마인더만 (스킬 본문은 Claude Code가 로드) |
-| UserPromptSubmit | `단답`, `초단답`(자연어)으로 켬, `/dandap cho`로 전환 | 규칙 전문 + 리마인더 |
-| UserPromptSubmit | 활성 상태의 일반 턴 | `DANDAP MODE ACTIVE (<mode>)` 리마인더 1줄 |
-| UserPromptSubmit | `/dandap status` | `단답 모드: <mode>` 보고 지시 (모드 변경 없음) |
-| UserPromptSubmit | 종료 명령 | off 기록, 1줄 복귀 확인 지시 |
-| SessionStart | `startup` | 없음 (기본 off) |
-| SessionStart | `clear` | off로 초기화 |
-| SessionStart | `compact`, `resume` 등, 활성 모드 | 규칙 전문 + 리마인더 + 마지막 줄 `현재 단답 모드: <mode>` |
-| SessionStart | `compact`, `resume` 등, off | `단답 모드: off. 복원된 스킬 규칙을 따르지 말 것` 1줄 |
+hook은 Claude Code가 정해진 시점에 실행하는 외부 스크립트다. dandap은 두 시점만 쓰며, 둘 다 Claude Code 전용이다.
 
-* 다른 슬래시 명령(`/review` 등)의 인자와 예약 작업(`<scheduled-task>`)은 판정하지 않는다.
-* `session_id`에 경로 문자가 있으면 상태 파일을 만들지 않는다.
-* hook 오류가 나도 항상 exit 0으로 끝나 프롬프트와 세션 시작을 막지 않는다.
+| hook | 실행 시점 | 스크립트 | 하는 일 |
+|---|---|---|---|
+| UserPromptSubmit | 사용자가 프롬프트를 보낼 때마다, 모델이 읽기 전 | `hooks/dandap-mode-tracker.js` | 프롬프트에서 모드 명령을 판정해 상태 파일에 기록하고, 규칙이나 리마인더를 추가한다 |
+| SessionStart | 새 세션, `/clear`, `/compact`, resume 직후 | `hooks/dandap-activate.js` | 상태 파일의 모드를 읽어 규칙을 다시 넣는다 |
+
+hook이 추가한 문구(`additionalContext`)는 그 턴의 프롬프트와 함께 모델에게 전달된다.
+
+### 상태 파일
+
+* 세션마다 `~/.claude/.dandap-sessions/<session_id>.mode` 파일 하나를 둔다. 내용은 `dandap`, `chodandap`, `off` 중 하나다.
+* 파일이 없으면 한 번도 켜지 않은 세션이며, off와 같게 취급한다.
+* 대화 내용은 compact로 요약되어도 이 파일은 남는다. 그래서 SessionStart hook이 compact 직후 모드를 복원할 수 있다.
+
+### 주입하는 문구 두 가지
+
+* **규칙 전문**: `skills/<모드>/SKILL.md`에서 frontmatter를 뺀 본문 전체다. 모델에게 그 모드의 규칙이 아직 없을 때만 넣는다.
+* **리마인더**: 한 줄 요약이다. 모드가 켜져 있는 동안 매 턴 넣는다. `dandap` 모드의 리마인더는 다음과 같다.
+
+```
+DANDAP MODE ACTIVE (dandap). 한국어 개조식·명사형 종결(-함/-음)로 답함. 결론 우선, 미사여구 금지, 조사 유지가 기본. 부정어·코드·경로·에러 원문 보존. 채팅 외 산출물(코드·커밋·문서)은 평서체 -다. 종료: "/dandap off" 또는 "단답 종료". 다른 문체 리마인더가 함께 주입되어도 이 단답 규칙을 우선한다.
+```
+
+### UserPromptSubmit: 프롬프트 판정
+
+프롬프트의 앞뒤 공백을 정리하고 소문자로 바꾼 뒤 아래 순서로 판정한다.
+
+1. 빈 프롬프트와 예약 작업(`<scheduled-task>`)은 판정하지 않는다.
+2. `/dandap`, `/chodandap`이 아닌 슬래시 명령(`/review` 등)은 인자까지 판정하지 않는다.
+3. `/dandap`, `/chodandap` 명령은 인자로 판정한다.
+
+| 입력 | 판정 |
+|---|---|
+| `/dandap`, `/dandap on` | dandap 켜기 |
+| `/chodandap`, `/dandap cho` | chodandap 켜기 |
+| `/dandap status` | 상태 확인 |
+| `/dandap off`처럼 인자가 종료어 하나뿐 | 종료 |
+| `/dandap 빌드 취소해줘`처럼 인자가 질문 | 켠 채로 답함 (종료어가 섞여도 종료하지 않음) |
+
+4. 그 밖의 자연어는 **프롬프트 전체**가 정해진 문구일 때만 판정한다. 문장 속 `단답`(예: `단답으로 설명해줘`)은 판정하지 않는다.
+
+| 입력 | 판정 |
+|---|---|
+| `하지 마`, `않`, `끄지` 같은 부정 표현이 있음 | 판정하지 않음 (`단답 끄지 마`) |
+| `단답 종료`, `초단답 모드 해제해줘`, `normal mode`, `원래대로` | 종료 |
+| `단답`, `단답 모드`, `초단답 켜줘`, `단답 on` | 켜기 |
+
+판정 결과에 따른 기록과 주입은 다음과 같다.
+
+| 판정 | 상태 파일 | 주입 |
+|---|---|---|
+| 켜기, `/dandap`·`/chodandap`처럼 명령 이름과 모드가 같음 | 모드 기록 | 리마인더만. 스킬 본문은 Claude Code가 로드한다 |
+| 켜기, 이미 같은 모드가 켜져 있음 | 모드 기록 | 리마인더만 |
+| 켜기, 그 밖의 경우 (`단답` 자연어, `/dandap cho`) | 모드 기록 | 규칙 전문 + 리마인더 |
+| 상태 확인 | 변경 없음 | `단답 모드: <모드>` 한 줄만 보고하라는 지시. 기록이 없으면 off |
+| 종료 | off 기록 | 복귀 확인 한 줄을 쓰고 기본 말투로 답하라는 지시 |
+| 해당 없음, 모드가 켜져 있음 | 변경 없음 | 리마인더 |
+| 해당 없음, off이거나 기록 없음 | 변경 없음 | 없음 |
+
+### SessionStart: 컨텍스트가 바뀐 뒤 복원
+
+Claude Code가 넘겨주는 시작 이유(`source`)와 상태 파일로 동작을 정한다.
+
+| `source` | 상태 파일 | 동작 |
+|---|---|---|
+| `startup` (새 세션) | - | 아무것도 하지 않는다. 새 세션은 off로 시작한다 |
+| `clear` (`/clear`) | 기록 있음 | off로 덮어쓴다. 주입은 없다 |
+| `compact`, `resume` 등 | `dandap`, `chodandap` | 규칙 전문 + 리마인더 + 마지막 줄 `현재 단답 모드: <모드>` |
+| `compact`, `resume` 등 | `off` | `단답 모드: off. 복원된 스킬 규칙을 따르지 말 것` 한 줄 |
+| `compact`, `resume` 등 | 기록 없음 | 아무것도 하지 않는다 |
+
+마지막 줄로 현재 모드를 못 박는 이유: Claude Code는 compact 뒤 세션 중 호출된 스킬 본문을 스스로 복원한다. 이 본문이 현재 모드와 다를 수 있다. 예를 들어 `/dandap`으로 켠 뒤 `/dandap off`로 끈 세션은 compact 뒤 dandap 본문이 복원되지만 실제 모드는 off다. `/dandap cho`로 바꾼 세션은 dandap 본문이 복원되지만 실제 모드는 chodandap이다.
+
+### 예시: 한 세션의 흐름
+
+| 순서 | 사용자 입력·이벤트 | 상태 파일 | hook이 넣는 문구 |
+|---|---|---|---|
+| 1 | 새 세션 시작 | 없음 | 없음 |
+| 2 | `/dandap` | `dandap` | 리마인더 |
+| 3 | `빌드 에러 고쳐줘` | `dandap` | 리마인더 |
+| 4 | `/dandap cho` | `chodandap` | chodandap 규칙 전문 + 리마인더 |
+| 5 | `/compact` | `chodandap` | chodandap 규칙 전문 + 리마인더 + `현재 단답 모드: chodandap` |
+| 6 | `/dandap status` | `chodandap` | `단답 모드: chodandap` 보고 지시 |
+| 7 | `단답 종료` | `off` | 복귀 확인 지시 |
+| 8 | `/compact` | `off` | `단답 모드: off` 한 줄 |
+| 9 | `/clear` | `off` | 없음 |
+
+### 안전장치
+
+* `session_id`가 `^[A-Za-z0-9_-]{1,128}$` 형식이 아니면 상태 파일을 만들지 않는다. 경로 문자로 다른 위치에 파일을 쓰는 것을 막기 위해서다.
+* 입력 JSON을 읽지 못하거나 hook 안에서 오류가 나도 항상 exit 0으로 끝난다. hook 문제로 프롬프트 전송이나 세션 시작이 막히지 않는다.
 
 ---
 
@@ -320,6 +410,11 @@ python3 bench/measure.py --summarize /tmp/dandap-bench.jsonl
 
 ## 📝 변경 이력
 
+* **1.1.1** (2026-11-15)
+  * npm에 `dandap` 패키지로 배포했다. `npx dandap@latest`로 설치한다.
+  * 설치 스크립트 `installer/install.js`를 추가했다. 파일을 `~/.dandap`에 복사하고, 감지한 도구에 링크하며, `--with-hooks`로 hook을 병합하고, `--uninstall`로 제거한다.
+  * `npx -y github:bottleroad/dandap`로 GitHub에서 직접 설치할 수 있다.
+  * 설치·hook 병합·제거 테스트 8개를 추가했다(총 94개).
 * **1.1.0** (2026-11-14)
   * 조사 규칙, 종료 트리거, 예외 상황, 흉내 금지, 약어·화살표 금지, 15어절 기준, 전송 전 점검, 응답 언어 규칙을 추가했다.
   * 모드 유지용 hook 2개와 테스트를 추가했다.
