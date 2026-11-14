@@ -157,7 +157,8 @@ Claude Code에서 `--with-hooks` 유무에 따른 차이는 다음과 같다.
 * `--uninstall`은 `~/.dandap`을 가리키는 링크와 hook, `~/.dandap`만 지운다. 상태 파일(`~/.claude/.dandap-sessions`)은 남긴다.
 * 백업 파일은 `--with-hooks`, `--uninstall`을 실행할 때마다 하나씩 생기고 자동으로 지워지지 않는다. 필요 없으면 `~/.claude/settings.json.dandap-backup-*`를 직접 지운다.
 * 설치 후 실행 중인 에이전트 세션은 다시 시작해야 적용된다.
-* macOS에서만 확인했다. Windows는 확인하지 않았다.
+* Windows는 파일 symlink를 만들 권한(관리자 또는 개발자 모드)이 없으면 명령 래퍼를 복사해 설치한다. 복사한 파일은 `~/.dandap/copies.json`에 기록하고, 재설치 때 갱신하며 `--uninstall` 때 지운다.
+* macOS와 GitHub Actions `windows-latest`(Node 22)에서 확인했다. Windows에서는 `npm pack` 결과물을 `npx`로 설치·재설치·제거하고, 등록된 hook 명령을 cmd, Windows PowerShell, PowerShell 7, Git Bash에서 실행했다. 사용자 경로는 ASCII와 공백·한글이 들어간 경로 두 가지로 확인했다. 러너는 관리자 권한이라 복사 대체 동작은 모의 테스트로만 확인했고, Windows의 실제 Claude Code·Codex·Gemini CLI 세션은 확인하지 않았다.
 
 ### 저장소에서 개발할 때
 
@@ -335,7 +336,7 @@ Claude Code가 넘겨주는 시작 이유(`source`)와 상태 파일로 동작�
 
 ## ✅ 검증
 
-* **자동 테스트**: 94개 통과. 활성화·종료·"종료 아님"·상태 판정 코퍼스, 상태 파일, hook 입출력, 임시 HOME에서의 설치·hook 병합·제거를 검증한다.
+* **자동 테스트**: 97개 통과. 활성화·종료·"종료 아님"·상태 판정 코퍼스, 상태 파일, hook 입출력, 임시 HOME(공백·한글 경로)에서의 설치·hook 병합·제거, 파일 symlink 권한이 없을 때의 복사 대체를 검증한다. `.github/workflows/windows.yml`이 `main` push와 PR마다 Windows에서 같은 테스트와 `npx` 설치 스모크 테스트를 실행한다.
 * **실제 세션 검증** (2026-11-14, tmux로 띄운 대화형 Claude Code 세션 2회):
 
 | 확인 항목 | 결과 |
