@@ -101,6 +101,17 @@ function toolEntries(tool) {
   return entries;
 }
 
+// fs.cpSync는 Windows에서 한글 등 비 ASCII 경로를 깨진 이름의 다른 경로에 복사하므로 직접 복사한다.
+function copyDir(from, to) {
+  fs.mkdirSync(to, { recursive: true });
+  for (const e of fs.readdirSync(from, { withFileTypes: true })) {
+    const src = path.join(from, e.name);
+    const dst = path.join(to, e.name);
+    if (e.isDirectory()) copyDir(src, dst);
+    else fs.copyFileSync(src, dst);
+  }
+}
+
 function settingsPath() {
   return path.join(HOME, '.claude', 'settings.json');
 }
@@ -193,7 +204,7 @@ function install(withHooks) {
 
   for (const part of PARTS) {
     fs.rmSync(path.join(BASE, part), { recursive: true, force: true });
-    fs.cpSync(path.join(SRC, part), path.join(BASE, part), { recursive: true });
+    copyDir(path.join(SRC, part), path.join(BASE, part));
   }
   console.log(`복사: ${BASE}`);
 
