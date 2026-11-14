@@ -110,13 +110,31 @@ dandap/
 │   ├── dandap-parse.js          # 활성화·종료·상태 판정
 │   ├── dandap-state.js          # 세션별 상태 파일 읽기·쓰기
 │   └── dandap-rules.js          # 주입할 규칙 전문·리마인더 문구
-├── tests/                   # node:test 테스트 (판정·상태·hook 입출력)
+├── installer/install.js     # npx 설치 스크립트 (설치·hook 병합·제거)
+├── tests/                   # node:test 테스트 (판정·상태·hook 입출력·설치)
 └── bench/measure.py         # claude -p 토큰 측정 스크립트
 ```
 
 ---
 
 ## 📂 설치
+
+### npx로 설치 (권장)
+
+```bash
+npx dandap@latest                # 스킬 + 슬래시 명령 래퍼
+npx dandap@latest --with-hooks   # 위 항목 + Claude Code hook
+npx dandap@latest --uninstall    # 제거
+```
+
+* 파일을 `~/.dandap`에 복사하고, `~/.claude`, `~/.codex`, `~/.gemini` 중 있는 도구에만 링크한다.
+* 같은 이름이 링크가 아닌 실제 파일·디렉터리로 있으면 덮어쓰지 않고 건너뛴다. 다른 곳을 가리키는 링크는 `~/.dandap`을 가리키도록 교체한다.
+* `--with-hooks`는 `~/.claude/settings.json`을 `settings.json.dandap-backup-<UTC 시각>`으로 백업한 뒤 hook을 병합한다. 다른 위치에 등록된 dandap hook은 중복 주입을 막기 위해 교체한다.
+* `--uninstall`은 `~/.dandap`을 가리키는 링크와 hook, `~/.dandap`만 지운다. 상태 파일(`~/.claude/.dandap-sessions`)은 남긴다.
+* 설치 후 실행 중인 에이전트 세션은 다시 시작해야 적용된다.
+* macOS에서만 확인했다. Windows는 확인하지 않았다.
+
+아래 1~3은 저장소를 직접 연결하는 수동 설치 방법이다.
 
 ### 1. 스킬 링크
 
@@ -209,7 +227,7 @@ Node.js 22 이상, 외부 의존성 없음.
 
 ## ✅ 검증
 
-* **자동 테스트**: 86개 통과. 활성화·종료·"종료 아님"·상태 판정 코퍼스, 상태 파일, hook 입출력을 검증한다.
+* **자동 테스트**: 94개 통과. 활성화·종료·"종료 아님"·상태 판정 코퍼스, 상태 파일, hook 입출력, 임시 HOME에서의 설치·hook 병합·제거를 검증한다.
 * **실제 세션 검증** (2026-11-14, tmux로 띄운 대화형 Claude Code 세션 2회):
 
 | 확인 항목 | 결과 |
