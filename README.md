@@ -411,6 +411,16 @@ python3 bench/measure.py --summarize /tmp/dandap-bench.jsonl
 
 ## 📝 변경 이력
 
+* **1.1.3** (2026-11-15)
+  * Windows에서 사용자 경로에 한글 등 ASCII 밖의 문자가 있으면 설치가 실패하던 문제를 고쳤다. `fs.cpSync`가 깨진 이름의 다른 경로에 복사하던 것을 직접 복사로 바꿨다.
+  * Windows에서 파일 symlink 권한(관리자 또는 개발자 모드)이 없으면 설치가 중간에 멈추던 문제를 고쳤다. 명령 래퍼를 복사하고 `~/.dandap/copies.json`에 기록해 재설치·제거 때 관리한다.
+  * hook 기록이 없는 세션에서 `/dandap status`가 `off`로 단정해 보고하던 문제를 고쳤다. 대화에서 판단한 모드에 `(세션 추적 안 됨)`을 붙여 보고한다.
+  * CRLF로 체크아웃한 SKILL.md도 hook이 frontmatter를 제거한다. `.gitattributes`로 LF를 고정했다.
+  * Windows CI(`.github/workflows/windows.yml`)를 추가했다. 단위 테스트, `npx` 설치·재설치·제거, GitHub 설치, hook 명령의 cmd·PowerShell·Git Bash 실행을 공백·한글 경로에서 검증한다.
+  * 테스트를 3개 추가했다(총 97개). 설치 테스트의 임시 HOME에 공백과 한글을 넣었다.
+* **1.1.2** (2026-11-15)
+  * npm 검색용 `keywords`를 `package.json`에 추가했다.
+  * README에 hook 상세 동작과 설치 보완 사항을 추가했다.
 * **1.1.1** (2026-11-15)
   * npm에 `dandap` 패키지로 배포했다. `npx dandap@latest`로 설치한다.
   * 설치 스크립트 `installer/install.js`를 추가했다. 파일을 `~/.dandap`에 복사하고, 감지한 도구에 링크하며, `--with-hooks`로 hook을 병합하고, `--uninstall`로 제거한다.
