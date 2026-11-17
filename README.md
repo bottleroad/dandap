@@ -88,7 +88,7 @@
 
 * Gemini CLI는 `~/.gemini/skills`, `~/.gemini/commands`를 agy와 함께 쓰도록 연결되어 있지만, 동작은 확인하지 않았다.
 * Codex와 agy는 1회성 질문만 확인했다. 여러 턴에 걸친 모드 유지와 `off`·`status` 인자 처리는 확인하지 않았다.
-* Kiro는 설치 스크립트가 `~/.kiro/skills`에 스킬을 링크한다. Kiro 문서 기준으로 이 경로의 `SKILL.md`를 읽고 `/dandap`처럼 슬래시로 호출할 수 있다. Kiro의 Claude·GPT 모델은 `~/.claude`·`~/.codex`를 읽지 않으므로 이 경로가 따로 필요하다. 문서의 frontmatter 필드에 `disable-model-invocation`이 없어 `chodandap`, `dandap-commit`, `dandap-review`가 자동으로 켜질 수 있다. 명령 래퍼와 hook은 설치하지 않는다. Kiro에서의 실제 동작은 확인하지 않았다.
+* Kiro는 설치 스크립트가 `~/.kiro/skills`에 스킬을 링크한다. Kiro 문서 기준으로 이 경로의 `SKILL.md`를 읽고 `/dandap`처럼 슬래시로 호출할 수 있다. Kiro의 Claude·GPT 모델은 `~/.claude`·`~/.codex`를 읽지 않으므로 이 경로가 따로 필요하다. 문서의 frontmatter 필드에 `disable-model-invocation`이 없어 `chodandap`, `dandap-commit`, `dandap-review`가 자동으로 켜질 수 있다. 명령 래퍼와 hook은 설치하지 않는다. macOS의 Kiro에서 `~/.kiro/skills`에 링크한 `dandap` 스킬이 동작하는 것을 확인했다. Windows의 Kiro와 보조 스킬의 자동 활성화 여부는 확인하지 않았다.
 
 ---
 
@@ -160,6 +160,32 @@ Claude Code에서 `--with-hooks` 유무에 따른 차이는 다음과 같다.
 * 설치 후 실행 중인 에이전트 세션은 다시 시작해야 적용된다.
 * Windows는 파일 symlink를 만들 권한(관리자 또는 개발자 모드)이 없으면 명령 래퍼를 복사해 설치한다. 복사한 파일은 `~/.dandap/copies.json`에 기록하고, 재설치 때 갱신하며 `--uninstall` 때 지운다.
 * macOS와 GitHub Actions `windows-latest`(Node 22)에서 확인했다. Windows에서는 `npm pack` 결과물을 `npx`로 설치·재설치·제거하고, 등록된 hook 명령을 cmd, Windows PowerShell, PowerShell 7, Git Bash에서 실행했다. 사용자 경로는 ASCII와 공백·한글이 들어간 경로 두 가지로 확인했다. 러너는 관리자 권한이라 복사 대체 동작은 모의 테스트로만 확인했고, Windows의 실제 Claude Code·Codex·Gemini CLI 세션은 확인하지 않았다.
+
+### 인터넷이 안 되는 환경 (zip 설치)
+
+npm과 GitHub에 접근할 수 없는 내부망 PC에서는 저장소 zip으로 설치한다. 설치 스크립트는 Node 내장 모듈만 쓰고 네트워크, `git`, `npm`을 호출하지 않는다.
+
+1. 인터넷이 되는 PC에서 GitHub 저장소의 **Code → Download ZIP**으로 받는다. `main` 브랜치의 최신 커밋이 담긴다.
+2. zip을 내부망 PC로 옮겨 압축을 푼다. 폴더 이름은 `dandap-main`이다.
+3. `node -v`로 Node.js 22 이상인지 확인한다.
+4. 쓰려는 도구의 설정 폴더(`~/.claude`, `~/.codex`, `~/.gemini`, `~/.kiro`)가 있는지 확인한다. 없으면 도구를 한 번 실행해 만든다. 설치 스크립트는 있는 폴더에만 설치한다.
+5. 압축을 푼 폴더에서 설치 스크립트를 실행한다. `npx`는 인터넷이 필요하므로 쓰지 않는다.
+
+   ```bash
+   cd dandap-main
+   node installer/install.js                # 스킬 + 슬래시 명령 래퍼
+   node installer/install.js --with-hooks   # 위 항목 + hook (Claude Code 전용)
+   node installer/install.js --uninstall    # 제거
+   ```
+
+6. 실행 중인 에이전트 세션이나 IDE를 다시 시작한다.
+
+* 파일은 `~/.dandap`에 복사되므로 설치 후 압축을 푼 폴더를 지워도 된다.
+* 에이전트(Claude Code, Kiro 등)에게 위 명령 실행을 요청해도 된다. 명령 실행 승인이 필요할 수 있다.
+* 새 버전은 zip을 다시 받아 같은 명령으로 재설치한다.
+* Node.js가 없으면 `skills/` 아래 5개 폴더를 도구의 스킬 폴더(`~/.claude/skills/`, `~/.codex/skills/`, `~/.gemini/skills/`, `~/.kiro/skills/`)에 직접 복사한다. Claude Code는 `commands/claude/*.md`를 `~/.claude/commands/`에 복사한다. hook은 Node.js가 있어야 동작하므로 이 방법으로는 쓸 수 없다.
+* Windows에서 `~`는 `%USERPROFILE%`(예: `C:\Users\<사용자>`)이다.
+* 인터넷이 끊긴 PC에서 zip으로 설치하는 전체 과정은 확인하지 않았다. 설치 스크립트의 Windows 동작은 CI에서, Kiro의 스킬 인식은 macOS에서 확인했다.
 
 ### 저장소에서 개발할 때
 
