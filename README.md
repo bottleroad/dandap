@@ -59,7 +59,7 @@
 ### 상태 확인
 
 * `/dandap status`: 모드를 바꾸지 않고 `단답 모드: <dandap|chodandap|off>` 한 줄로 보고한다.
-* hook이 없는 환경(Codex, agy, Gemini CLI)에서는 `(세션 추적 안 됨)`이 붙는다.
+* hook이 없는 환경(Codex, agy, Gemini CLI, Kiro)에서는 `(세션 추적 안 됨)`이 붙는다.
 
 ### 관련 스킬
 
@@ -88,6 +88,7 @@
 
 * Gemini CLI는 `~/.gemini/skills`, `~/.gemini/commands`를 agy와 함께 쓰도록 연결되어 있지만, 동작은 확인하지 않았다.
 * Codex와 agy는 1회성 질문만 확인했다. 여러 턴에 걸친 모드 유지와 `off`·`status` 인자 처리는 확인하지 않았다.
+* Kiro는 설치 스크립트가 `~/.kiro/skills`에 스킬을 링크한다. Kiro 문서 기준으로 이 경로의 `SKILL.md`를 읽고 `/dandap`처럼 슬래시로 호출할 수 있다. Kiro의 Claude·GPT 모델은 `~/.claude`·`~/.codex`를 읽지 않으므로 이 경로가 따로 필요하다. 문서의 frontmatter 필드에 `disable-model-invocation`이 없어 `chodandap`, `dandap-commit`, `dandap-review`가 자동으로 켜질 수 있다. 명령 래퍼와 hook은 설치하지 않는다. Kiro에서의 실제 동작은 확인하지 않았다.
 
 ---
 
@@ -139,7 +140,7 @@ npx -y github:bottleroad/dandap --uninstall
 
 npm 10에서 확인했다. npm 12 이상은 git 설치를 막을 수 있어 `npx --allow-git=root -y github:bottleroad/dandap`처럼 옵션이 필요할 수 있지만, 확인하지 않았다.
 
-**`--with-hooks`는 Claude Code에만 적용된다.** Codex·agy·Gemini CLI에는 hook을 등록하지 않으므로, 옵션을 붙여도 붙이지 않은 것과 똑같이 설치된다. `~/.claude`가 없으면 `--with-hooks`는 실패한다.
+**`--with-hooks`는 Claude Code에만 적용된다.** Codex·agy·Gemini CLI·Kiro에는 hook을 등록하지 않으므로, 옵션을 붙여도 붙이지 않은 것과 똑같이 설치된다. `~/.claude`가 없으면 `--with-hooks`는 실패한다.
 
 Claude Code에서 `--with-hooks` 유무에 따른 차이는 다음과 같다.
 
@@ -151,7 +152,7 @@ Claude Code에서 `--with-hooks` 유무에 따른 차이는 다음과 같다.
 | `단답`, `초단답` 자연어로 켜기 | 스킬 설명에 따라 모델이 판단 | hook이 감지해 규칙을 주입 |
 | `/dandap status` | `(세션 추적 안 됨)`이 붙음 | 기록된 모드 보고 (기록이 없으면 `(세션 추적 안 됨)`이 붙음) |
 
-* 파일을 `~/.dandap`에 복사하고, `~/.claude`, `~/.codex`, `~/.gemini` 중 있는 도구에만 링크한다.
+* 파일을 `~/.dandap`에 복사하고, `~/.claude`, `~/.codex`, `~/.gemini`, `~/.kiro` 중 있는 도구에만 링크한다.
 * 같은 이름이 링크가 아닌 실제 파일·디렉터리로 있으면 덮어쓰지 않고 건너뛴다. 다른 곳을 가리키는 링크는 `~/.dandap`을 가리키도록 교체한다.
 * `--with-hooks`는 `~/.claude/settings.json`을 `settings.json.dandap-backup-<UTC 시각>`으로 백업한 뒤 hook을 병합한다. 다른 위치에 등록된 dandap hook은 중복 주입을 막기 위해 교체한다.
 * `--uninstall`은 `~/.dandap`을 가리키는 링크와 hook, `~/.dandap`만 지운다. 상태 파일(`~/.claude/.dandap-sessions`)은 남긴다.
@@ -163,7 +164,7 @@ Claude Code에서 `--with-hooks` 유무에 따른 차이는 다음과 같다.
 ### 저장소에서 개발할 때
 
 * 저장소 루트에서는 `npx dandap@latest`가 `sh: dandap: command not found`로 실패한다. 현재 디렉터리의 패키지 이름도 `dandap`이기 때문으로 보인다. 저장소 안에서는 `node installer/install.js [--with-hooks | --uninstall]`를 쓰거나 다른 디렉터리에서 npx를 실행한다.
-* 설치 스크립트를 실행하면 `~/.claude`, `~/.codex`, `~/.gemini`의 dandap 링크와 hook이 `~/.dandap` 기준으로 바뀐다. 저장소를 직접 연결한 개발용 구성(아래 1~3)을 쓰고 있다면 그 연결이 풀린다.
+* 설치 스크립트를 실행하면 `~/.claude`, `~/.codex`, `~/.gemini`, `~/.kiro`의 dandap 링크와 hook이 `~/.dandap` 기준으로 바뀐다. 저장소를 직접 연결한 개발용 구성(아래 1~3)을 쓰고 있다면 그 연결이 풀린다.
 
 아래 1~3은 저장소를 직접 연결하는 수동 설치 방법이다.
 
