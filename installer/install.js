@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// dandap 스킬·명령 래퍼를 ~/.dandap에 복사하고 감지된 도구(Claude Code, Codex, agy·Gemini CLI)에 링크하는 설치 스크립트.
+// dandap 스킬·명령 래퍼를 ~/.dandap에 복사하고 감지된 도구(Claude Code, Codex, agy·Gemini CLI, Kiro)에 링크하는 설치 스크립트.
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
@@ -16,6 +16,7 @@ const TOOLS = [
   { name: 'Claude Code', dir: '.claude', commands: { from: 'claude', ext: '.md' } },
   { name: 'Codex', dir: '.codex' },
   { name: 'agy·Gemini CLI', dir: '.gemini', commands: { from: 'gemini', ext: '.toml' } },
+  { name: 'Kiro', dir: '.kiro' },
 ];
 
 const HOOKS = {
@@ -185,7 +186,7 @@ function detectTools() {
 function install(withHooks) {
   const tools = detectTools();
   if (tools.length === 0) {
-    console.error('설치 대상 도구를 찾지 못했다. ~/.claude, ~/.codex, ~/.gemini 중 하나가 있어야 한다.');
+    console.error('설치 대상 도구를 찾지 못했다. ~/.claude, ~/.codex, ~/.gemini, ~/.kiro 중 하나가 있어야 한다.');
     return 1;
   }
   // hook 설정이 깨져 있으면 아무것도 바꾸기 전에 멈춘다.

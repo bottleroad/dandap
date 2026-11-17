@@ -9,8 +9,9 @@ const { spawnSync } = require('node:child_process');
 const INSTALLER = path.join(__dirname, '..', 'installer', 'install.js');
 const EPERM = path.join(__dirname, 'fixtures', 'symlink-eperm.js');
 const SKILLS = ['dandap', 'chodandap', 'dandap-help', 'dandap-commit', 'dandap-review'];
+const TOOL_DIRS = ['.claude', '.codex', '.gemini', '.kiro'];
 
-function freshHome(tools = ['.claude', '.codex', '.gemini']) {
+function freshHome(tools = TOOL_DIRS) {
   // 한글·공백 사용자명 경로에서도 동작해야 한다(Windows의 fs.cpSync는 비 ASCII 경로를 깨뜨린 적이 있다).
   const home = fs.mkdtempSync(path.join(os.tmpdir(), 'dandap home 사용자-'));
   for (const t of tools) fs.mkdirSync(path.join(home, t));
@@ -56,7 +57,7 @@ test('설치: ~/.dandap에 복사하고 감지된 도구에 스킬·명령을 �
   const base = path.join(home, '.dandap');
   assert.ok(fs.existsSync(path.join(base, 'skills', 'dandap', 'SKILL.md')));
   assert.ok(fs.existsSync(path.join(base, 'hooks', 'dandap-activate.js')));
-  for (const dir of ['.claude', '.codex', '.gemini']) {
+  for (const dir of TOOL_DIRS) {
     for (const s of SKILLS) {
       const link = path.join(home, dir, 'skills', s);
       assert.equal(fs.readlinkSync(link), path.join(base, 'skills', s));
@@ -136,7 +137,7 @@ test('--uninstall: 설치한 링크·hook·~/.dandap만 제거', () => {
   ok(home, '--uninstall');
 
   assert.ok(!fs.existsSync(path.join(home, '.dandap')));
-  for (const dir of ['.claude', '.codex', '.gemini']) {
+  for (const dir of TOOL_DIRS) {
     for (const s of SKILLS) assert.ok(!fs.existsSync(path.join(home, dir, 'skills', s)));
   }
   assert.ok(!fs.existsSync(path.join(home, '.claude', 'commands', 'dandap.md')));
@@ -154,7 +155,7 @@ test('파일 symlink 권한이 없으면 명령 래퍼를 복사해 설치를 �
   assert.equal(fs.readFileSync(wrapper, 'utf8'),
     fs.readFileSync(path.join(base, 'commands', 'claude', 'dandap.md'), 'utf8'));
   assert.ok(fs.existsSync(path.join(home, '.gemini', 'commands', 'chodandap.toml')));
-  for (const dir of ['.claude', '.codex', '.gemini']) {
+  for (const dir of TOOL_DIRS) {
     assert.ok(fs.lstatSync(path.join(home, dir, 'skills', 'dandap')).isSymbolicLink(), `${dir} 스킬은 링크`);
   }
   assert.equal(hookCommands(home, 'UserPromptSubmit').length, 1, 'hook 등록까지 진행');
