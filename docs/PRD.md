@@ -1,5 +1,5 @@
-<!-- 이 문서는 dandap의 시스템 명세서(Spec)다. -->
-# Spec: dandap — V1
+<!-- 이 문서는 dandap의 제품 요구사항 문서(PRD)다. -->
+# PRD: dandap
 
 ## 1. Objective (목적 및 핵심 가치)
 - Claude Code, Codex, Gemini CLI 등 LLM 코딩 에이전트 환경에서 인사말과 미사여구를 배제하고 결론 중심 명사형(-함/-음)으로 답변하도록 강제하는 한국어 개조식 단답 스킬 및 훅 도구.
