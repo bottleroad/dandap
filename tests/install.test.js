@@ -9,6 +9,7 @@ const { spawnSync } = require('node:child_process');
 const INSTALLER = path.join(__dirname, '..', 'installer', 'install.js');
 const EPERM = path.join(__dirname, 'fixtures', 'symlink-eperm.js');
 const SKILLS = ['dandap', 'chodandap', 'dandap-help', 'dandap-commit', 'dandap-review'];
+const KIRO_SKILLS = ['dandap', 'chodandap', 'dandap-help'];
 const TOOL_DIRS = ['.claude', '.codex', '.gemini', '.kiro'];
 
 function freshHome(tools = TOOL_DIRS) {
@@ -57,11 +58,18 @@ test('설치: ~/.dandap에 복사하고 감지된 도구에 스킬·명령을 �
   const base = path.join(home, '.dandap');
   assert.ok(fs.existsSync(path.join(base, 'skills', 'dandap', 'SKILL.md')));
   assert.ok(fs.existsSync(path.join(base, 'hooks', 'dandap-activate.js')));
-  for (const dir of TOOL_DIRS) {
+  for (const dir of ['.claude', '.codex', '.gemini']) {
     for (const s of SKILLS) {
       const link = path.join(home, dir, 'skills', s);
       assert.equal(fs.readlinkSync(link), path.join(base, 'skills', s));
     }
+  }
+  for (const s of KIRO_SKILLS) {
+    const link = path.join(home, '.kiro', 'skills', s);
+    assert.equal(fs.readlinkSync(link), path.join(base, 'skills', s));
+  }
+  for (const s of ['dandap-commit', 'dandap-review']) {
+    assert.ok(!fs.existsSync(path.join(home, '.kiro', 'skills', s)), `Kiro에는 ${s}를 설치하지 않음`);
   }
   assert.equal(fs.readlinkSync(path.join(home, '.claude', 'commands', 'dandap.md')),
     path.join(base, 'commands', 'claude', 'dandap.md'));
@@ -183,4 +191,91 @@ test('알 수 없는 옵션은 실패', () => {
   const res = run(home, '--bogus');
   assert.equal(res.status, 1);
   assert.ok(!fs.existsSync(path.join(home, '.dandap')));
+});
+
+test('Kiro: 3개 스킬만 설치하고 기존 5개 링크 재설치 시 남은 2개 링크를 정리', () => {
+  const home = freshHome(['.kiro']);
+  const base = path.join(home, '.dandap');
+  ok(home);
+  for (const s of KIRO_SKILLS) {
+    assert.equal(fs.readlinkSync(path.join(home, '.kiro', 'skills', s)), path.join(base, 'skills', s));
+  }
+  for (const s of ['dandap-commit', 'dandap-review']) {
+    assert.ok(!fs.existsSync(path.join(home, '.kiro', 'skills', s)));
+  }
+
+  // 과거 버전처럼 5개 링크가 모두 존재하는 상태를 시뮬레이션
+  for (const s of ['dandap-commit', 'dandap-review']) {
+    fs.symlinkSync(path.join(base, 'skills', s), path.join(home, '.kiro', 'skills', s), 'junction');
+  }
+  for (const s of SKILLS) {
+    assert.ok(fs.existsSync(path.join(home, '.kiro', 'skills', s)));
+  }
+
+  // 재설치 시 제외된 2개 링크가 정리됨
+  ok(home);
+  for (const s of KIRO_SKILLS) {
+    assert.ok(fs.existsSync(path.join(home, '.kiro', 'skills', s)));
+  }
+  for (const s of ['dandap-commit', 'dandap-review']) {
+    assert.ok(!fs.existsSync(path.join(home, '.kiro', 'skills', s)), `재설치 시 ${s} 링크 제거됨`);
+  }
+});
+
+test('Kiro: 재설치 시 사용자가 만든 다른 파일·디렉터리·외부 링크는 보존', () => {
+  const home = freshHome(['.kiro']);
+  const base = path.join(home, '.dandap');
+  ok(home);
+
+  // 사용자가 직접 생성한 디렉터리
+  const userDir = path.join(home, '.kiro', 'skills', 'my-custom-skill');
+  fs.mkdirSync(userDir, { recursive: true });
+  fs.writeFileSync(path.join(userDir, 'SKILL.md'), 'custom');
+
+  // 사용자가 외부 경로로 직접 링크한 dandap-commit
+  const externalDir = path.join(home, 'external-commit');
+  fs.mkdirSync(externalDir, { recursive: true });
+  const userLink = path.join(home, '.kiro', 'skills', 'dandap-commit');
+  fs.symlinkSync(externalDir, userLink, 'junction');
+
+  // dandap이 만들었던 링크(dandap-review)를 가상으로 추가
+  const ourStaleLink = path.join(home, '.kiro', 'skills', 'dandap-review');
+  fs.symlinkSync(path.join(base, 'skills', 'dandap-review'), ourStaleLink, 'junction');
+
+  // 재설치 실행
+  ok(home);
+
+  // dandap 이전 링크는 삭제
+  assert.ok(!fs.existsSync(ourStaleLink), 'dandap 이전 링크는 삭제');
+  // 사용자의 디렉터리는 보존
+  assert.ok(fs.existsSync(userDir), '사용자 디렉터리 보존');
+  assert.equal(fs.readFileSync(path.join(userDir, 'SKILL.md'), 'utf8'), 'custom');
+  // 사용자의 외부 링크는 보존
+  assert.ok(fs.lstatSync(userLink).isSymbolicLink(), '사용자 링크 보존');
+  assert.equal(fs.readlinkSync(userLink), externalDir);
+});
+
+test('Kiro: 5개 링크 상태에서 --uninstall 실행 시 5개 모두 제거되고 사용자 항목은 보존', () => {
+  const home = freshHome(['.kiro']);
+  const base = path.join(home, '.dandap');
+  ok(home);
+
+  // 과거 5개 링크 상태 시뮬레이션
+  for (const s of ['dandap-commit', 'dandap-review']) {
+    fs.symlinkSync(path.join(base, 'skills', s), path.join(home, '.kiro', 'skills', s), 'junction');
+  }
+  // 사용자 파일 추가
+  const userFile = path.join(home, '.kiro', 'skills', 'user-note.txt');
+  fs.writeFileSync(userFile, 'note');
+
+  // 제거 실행
+  ok(home, '--uninstall');
+
+  // dandap 스킬 5개 링크 모두 제거됨
+  for (const s of SKILLS) {
+    assert.ok(!fs.existsSync(path.join(home, '.kiro', 'skills', s)), `${s} 링크 제거됨`);
+  }
+  // 사용자 파일은 보존됨
+  assert.ok(fs.existsSync(userFile), '사용자 파일 보존');
+  assert.equal(fs.readFileSync(userFile, 'utf8'), 'note');
 });

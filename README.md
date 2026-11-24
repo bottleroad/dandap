@@ -88,7 +88,7 @@
 
 * Gemini CLI는 `~/.gemini/skills`, `~/.gemini/commands`를 agy와 함께 쓰도록 연결되어 있지만, 동작은 확인하지 않았다.
 * Codex와 agy는 1회성 질문만 확인했다. 여러 턴에 걸친 모드 유지와 `off`·`status` 인자 처리는 확인하지 않았다.
-* Kiro는 설치 스크립트가 `~/.kiro/skills`에 스킬을 링크한다. Kiro 문서 기준으로 이 경로의 `SKILL.md`를 읽고 `/dandap`처럼 슬래시로 호출할 수 있다. Kiro의 Claude·GPT 모델은 `~/.claude`·`~/.codex`를 읽지 않으므로 이 경로가 따로 필요하다. 문서의 frontmatter 필드에 `disable-model-invocation`이 없어 `chodandap`, `dandap-commit`, `dandap-review`가 자동으로 켜질 수 있다. 명령 래퍼와 hook은 설치하지 않는다. macOS의 Kiro에서 `~/.kiro/skills`에 링크한 `dandap` 스킬이 동작하는 것을 확인했다. Windows의 Kiro와 보조 스킬의 자동 활성화 여부는 확인하지 않았다.
+* Kiro는 설치 스크립트가 `~/.kiro/skills`에 스킬을 링크한다. Kiro 문서 기준으로 이 경로의 `SKILL.md`를 읽고 `/dandap`처럼 슬래시로 호출할 수 있다. Kiro의 Claude·GPT 모델은 `~/.claude`·`~/.codex`를 읽지 않으므로 이 경로가 따로 필요하다. Kiro에는 `dandap`, `chodandap`, `dandap-help` 3개 스킬만 설치한다. Kiro가 frontmatter의 `disable-model-invocation`을 읽지 않아 `dandap-commit`, `dandap-review`를 설치하면 모델이 의도치 않게 이들을 자동 호출하는 문제가 생길 수 있기 때문이다. 명령 래퍼와 hook은 설치하지 않는다. 현재 npm에 배포된 1.1.3 버전에는 Kiro 지원이 포함되어 있지 않으므로, 다음 npm 배포 전까지 Kiro 사용자는 `npx -y github:bottleroad/dandap` 또는 zip 설치를 쓴다. macOS의 Kiro에서 `~/.kiro/skills`에 링크한 `dandap` 스킬이 동작하는 것을 확인했다. Windows의 Kiro와 보조 스킬의 자동 활성화 여부는 확인하지 않았다.
 
 ---
 
@@ -129,6 +129,8 @@ npx dandap@latest --uninstall    # 제거
 ```
 
 Node.js 22 이상이 필요하다. npx는 `engines` 조건을 강제하지 않고 경고만 하므로, 먼저 `node -v`로 확인한다.
+
+npm 1.1.3 배포본에는 Kiro 지원이 포함되어 있지 않다. 다음 배포 전까지 Kiro 사용자는 아래 GitHub 지정자(`npx -y github:bottleroad/dandap`) 또는 zip 설치를 쓴다.
 
 npm 대신 GitHub 저장소에서 바로 실행할 수도 있다. `main` 브랜치의 최신 커밋을 받으며, `git`이 필요하다.
 
@@ -183,8 +185,35 @@ npm과 GitHub에 접근할 수 없는 내부망 PC에서는 저장소 zip으로 
 * 파일은 `~/.dandap`에 복사되므로 설치 후 압축을 푼 폴더를 지워도 된다.
 * 에이전트(Claude Code, Kiro 등)에게 위 명령 실행을 요청해도 된다. 명령 실행 승인이 필요할 수 있다.
 * 새 버전은 zip을 다시 받아 같은 명령으로 재설치한다.
-* Node.js가 없으면 `skills/` 아래 5개 폴더를 도구의 스킬 폴더(`~/.claude/skills/`, `~/.codex/skills/`, `~/.gemini/skills/`, `~/.kiro/skills/`)에 직접 복사한다. Claude Code는 `commands/claude/*.md`를 `~/.claude/commands/`에 복사한다. hook은 Node.js가 있어야 동작하므로 이 방법으로는 쓸 수 없다.
-* Windows에서 `~`는 `%USERPROFILE%`(예: `C:\Users\<사용자>`)이다.
+* Node.js가 없으면 `skills/` 아래 폴더를 각 도구의 스킬 폴더에 직접 복사한다.
+  * Claude Code, Codex, agy: 5개 폴더(`dandap`, `chodandap`, `dandap-help`, `dandap-commit`, `dandap-review`)를 모두 복사한다. Claude Code는 `commands/claude/*.md`를 `~/.claude/commands/`에도 복사한다.
+  * Kiro: `disable-model-invocation` 미지원으로 인한 모델의 자동 호출을 막기 위해 3개 폴더(`dandap`, `chodandap`, `dandap-help`)만 복사한다.
+  * 수동 복사본은 설치 스크립트가 관리하지 않으므로 `--uninstall`로 지워지지 않는다. 필요하면 해당 폴더를 직접 삭제해야 한다.
+  * hook은 Node.js가 있어야 동작하므로 수동 복사로는 쓸 수 없다.
+* Windows에서 `~`는 `%USERPROFILE%`(예: `C:\Users\<사용자>`)이다. Windows PowerShell에서 복사하는 명령 예시는 다음과 같다(압축을 푼 `dandap-main` 폴더에서 실행).
+
+  ```powershell
+  # Claude Code (스킬 5개 + 슬래시 명령 래퍼)
+  New-Item -ItemType Directory -Force "$HOME\.claude\skills", "$HOME\.claude\commands"
+  Copy-Item -Recurse -Force skills\* "$HOME\.claude\skills\"
+  Copy-Item -Force commands\claude\*.md "$HOME\.claude\commands\"
+
+  # Codex (스킬 5개)
+  New-Item -ItemType Directory -Force "$HOME\.codex\skills"
+  Copy-Item -Recurse -Force skills\* "$HOME\.codex\skills\"
+
+  # agy, Gemini CLI (스킬 5개 + 슬래시 명령 래퍼)
+  New-Item -ItemType Directory -Force "$HOME\.gemini\skills", "$HOME\.gemini\commands"
+  Copy-Item -Recurse -Force skills\* "$HOME\.gemini\skills\"
+  Copy-Item -Force commands\gemini\*.toml "$HOME\.gemini\commands\"
+
+  # Kiro (스킬 3개만 복사)
+  New-Item -ItemType Directory -Force "$HOME\.kiro\skills"
+  foreach ($s in @('dandap', 'chodandap', 'dandap-help')) {
+    Copy-Item -Recurse -Force "skills\$s" "$HOME\.kiro\skills\"
+  }
+  ```
+
 * 인터넷이 끊긴 PC에서 zip으로 설치하는 전체 과정은 확인하지 않았다. 설치 스크립트의 Windows 동작은 CI에서, Kiro의 스킬 인식은 macOS에서 확인했다.
 
 ### 저장소에서 개발할 때

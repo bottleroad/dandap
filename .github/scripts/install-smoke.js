@@ -18,6 +18,7 @@ const env = {
 };
 const base = path.join(home, '.dandap');
 const SKILLS = ['dandap', 'chodandap', 'dandap-help', 'dandap-commit', 'dandap-review'];
+const KIRO_SKILLS = ['dandap', 'chodandap', 'dandap-help'];
 const WRAPPERS = [['.claude', 'dandap.md'], ['.claude', 'chodandap.md'], ['.gemini', 'dandap.toml'], ['.gemini', 'chodandap.toml']];
 
 function step(name) {
@@ -73,6 +74,18 @@ function checkInstalled() {
       assert.ok(fs.existsSync(path.join(p, 'SKILL.md')), `${p}/SKILL.md 읽기 가능`);
     }
   }
+  for (const s of KIRO_SKILLS) {
+    const p = path.join(home, '.kiro', 'skills', s);
+    assert.ok(fs.lstatSync(p).isSymbolicLink(), `${p} 는 링크`);
+    const target = path.resolve(path.dirname(p), fs.readlinkSync(p));
+    console.log(`링크: ${p} -> ${fs.readlinkSync(p)}`);
+    assert.equal(target.replace(/[\\/]+$/, ''), path.join(base, 'skills', s));
+    assert.ok(fs.existsSync(path.join(p, 'SKILL.md')), `${p}/SKILL.md 읽기 가능`);
+  }
+  for (const s of ['dandap-commit', 'dandap-review']) {
+    const p = path.join(home, '.kiro', 'skills', s);
+    assert.ok(!fs.existsSync(p), `${p} 는 미설치`);
+  }
   for (const [dir, file] of WRAPPERS) {
     const p = path.join(home, dir, 'commands', file);
     const kind = fs.lstatSync(p).isSymbolicLink() ? '링크' : '복사본';
@@ -83,7 +96,7 @@ function checkInstalled() {
 
 const npmVersion = spawnSync('npm', ['--version'], { env, encoding: 'utf8', shell: isWin }).stdout.trim();
 console.log(`node ${process.version}, npm ${npmVersion}, ${process.platform}, 패키지=${pkg}, HOME=${home}`);
-for (const dir of ['.claude', '.codex', '.gemini']) fs.mkdirSync(path.join(home, dir), { recursive: true });
+for (const dir of ['.claude', '.codex', '.gemini', '.kiro']) fs.mkdirSync(path.join(home, dir), { recursive: true });
 
 step('설치 (--with-hooks)');
 installer('--with-hooks');
@@ -114,7 +127,7 @@ hookCommand('SessionStart');
 step('제거');
 installer('--uninstall');
 assert.ok(!fs.existsSync(base), '~/.dandap 제거');
-for (const dir of ['.claude', '.codex', '.gemini']) {
+for (const dir of ['.claude', '.codex', '.gemini', '.kiro']) {
   for (const s of SKILLS) assert.ok(!fs.existsSync(path.join(home, dir, 'skills', s)), `${dir}/skills/${s} 제거`);
 }
 for (const [dir, file] of WRAPPERS) assert.ok(!fs.existsSync(path.join(home, dir, 'commands', file)), `${file} 제거`);

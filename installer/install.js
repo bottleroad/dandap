@@ -16,7 +16,7 @@ const TOOLS = [
   { name: 'Claude Code', dir: '.claude', commands: { from: 'claude', ext: '.md' } },
   { name: 'Codex', dir: '.codex' },
   { name: 'agy·Gemini CLI', dir: '.gemini', commands: { from: 'gemini', ext: '.toml' } },
-  { name: 'Kiro', dir: '.kiro' },
+  { name: 'Kiro', dir: '.kiro', skills: ['dandap', 'chodandap', 'dandap-help'] },
 ];
 
 const HOOKS = {
@@ -82,11 +82,18 @@ function link(target, p, copies) {
 }
 
 function unlinkOurs(p, copies) {
-  if (isOurLink(p) || (copies.has(p) && lstat(p)?.isFile())) fs.unlinkSync(p);
+  if (isOurLink(p) || (copies.has(p) && lstat(p)?.isFile())) {
+    fs.unlinkSync(p);
+    copies.delete(p);
+  }
+}
+
+function toolSkills(tool) {
+  return tool.skills || SKILLS;
 }
 
 function toolEntries(tool) {
-  const entries = SKILLS.map((s) => ({
+  const entries = toolSkills(tool).map((s) => ({
     target: path.join(BASE, 'skills', s),
     link: path.join(HOME, tool.dir, 'skills', s),
   }));
@@ -97,6 +104,24 @@ function toolEntries(tool) {
         target: path.join(BASE, 'commands', tool.commands.from, file),
         link: path.join(HOME, tool.dir, 'commands', file),
       });
+    }
+  }
+  return entries;
+}
+
+// 대상에서 제외된 스킬 중 이전 설치에서 남은 dandap 링크·복사본을 정리한다.
+function toolPruneEntries(tool) {
+  const active = new Set(toolSkills(tool));
+  return SKILLS.filter((s) => !active.has(s)).map((s) => path.join(HOME, tool.dir, 'skills', s));
+}
+
+// 제거 대상: 과거에 설치되었을 수 있는 모든 스킬과 명령 래퍼.
+function toolUninstallEntries(tool) {
+  const entries = SKILLS.map((s) => path.join(HOME, tool.dir, 'skills', s));
+  if (tool.commands) {
+    for (const m of MODES) {
+      const file = m + tool.commands.ext;
+      entries.push(path.join(HOME, tool.dir, 'commands', file));
     }
   }
   return entries;
@@ -212,6 +237,7 @@ function install(withHooks) {
   const copies = readCopies();
   for (const tool of tools) {
     for (const e of toolEntries(tool)) link(e.target, e.link, copies);
+    for (const p of toolPruneEntries(tool)) unlinkOurs(p, copies);
     console.log(`설치: ${tool.name} (~/${tool.dir})`);
   }
   fs.writeFileSync(COPIES, JSON.stringify([...copies], null, 2) + '\n');
@@ -229,7 +255,7 @@ function uninstall() {
   }
   const copies = readCopies();
   for (const tool of TOOLS) {
-    for (const e of toolEntries(tool)) unlinkOurs(e.link, copies);
+    for (const p of toolUninstallEntries(tool)) unlinkOurs(p, copies);
   }
   fs.rmSync(BASE, { recursive: true, force: true });
   console.log(`제거 완료: 링크와 ${BASE}`);
